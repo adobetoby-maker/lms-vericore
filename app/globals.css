@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* ── Theme CSS custom properties ─────────────────────────────────── */
+:root {
+  /* Default: Midnight (dark) */
+  --bg:        #0a0a18;
+  --bg2:       #1a1a2e;
+  --bg3:       #252545;
+  --border:    rgba(255,255,255,0.08);
+  --text:      #f2f2f7;
+  --text2:     rgba(235,235,245,0.6);
+  --text3:     rgba(235,235,245,0.3);
+  --accent:    #4f46e5;
+  --accent-h:  #4338ca;
+  --accent-fg: #ffffff;
+  --card:      rgba(26,26,46,0.8);
+  --input-bg:  #0a0a18;
+}
+
+/* ── Tailwind v4 theme bridge ─────────────────────────────────────── */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ── Base styles ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ── Utility classes ──────────────────────────────────────────────── */
+.bg-theme        { background: var(--bg); }
+.bg-theme-card   { background: var(--card); }
+.bg-theme-2      { background: var(--bg2); }
+.bg-theme-3      { background: var(--bg3); }
+.text-theme      { color: var(--text); }
+.text-theme-2    { color: var(--text2); }
+.text-theme-3    { color: var(--text3); }
+.border-theme    { border-color: var(--border); }
+.accent          { color: var(--accent); }
+.bg-accent       { background: var(--accent); color: var(--accent-fg); }
+.bg-accent:hover { background: var(--accent-h); }
+.ring-accent     { --tw-ring-color: var(--accent); }
+.input-theme {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.input-theme::placeholder { color: var(--text3); }
+.input-theme:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.card-theme {
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Theme palette swatches (login picker) ────────────────────────── */
+.swatch {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.swatch:hover    { transform: scale(1.15); }
+.swatch.active   { border-color: white; box-shadow: 0 0 0 2px var(--accent); }
+
+/* ── Light mode text readability on utility classes */
+[data-mode="light"] .text-theme   { color: var(--text); }
+[data-mode="light"] .text-theme-2 { color: var(--text2); }

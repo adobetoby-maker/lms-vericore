@@ -1,0 +1,86 @@
+{
+  "app": {
+    "name": "LMS Portal",
+    "tagline": "Learning Management System"
+  },
+  "login": {
+    "welcome": "Welcome back",
+    "subtitle": "Sign in to your account to continue",
+    "email": "Email address",
+    "email_placeholder": "you@company.com",
+    "password": "Password",
+    "sign_in": "Sign in",
+    "signing_in": "Signing in…",
+    "no_account": "Don't have an account? Ask your administrator for an invite link.",
+    "demo_access": "Quick demo access",
+    "learner_demo": "Learner Demo",
+    "admin_demo": "Admin Demo",
+    "forgot_password": "Forgot password?",
+    "error_invalid": "Invalid email or password."
+  },
+  "nav": {
+    "admin": "Admin",
+    "courses": "Courses",
+    "completions": "Completions",
+    "compliance": "Compliance",
+    "dashboard": "Dashboard",
+    "sign_out": "Sign out",
+    "administrator": "Administrator"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "progress": "Overall Progress",
+    "completed": "completed",
+    "enrolled": "Enrolled",
+    "in_progress": "In Progress",
+    "complete": "Completed",
+    "your_courses": "Your Courses",
+    "no_courses": "No courses yet",
+    "no_courses_sub": "You haven't been enrolled in any courses yet. Contact your administrator to get started.",
+    "continue": "Continue",
+    "start": "Start",
+    "review": "Review",
+    "videos": "video",
+    "videos_plural": "videos",
+    "zero_remaining": "You have 0 courses remaining.",
+    "remaining": "You have {count} course remaining.",
+    "remaining_plural": "You have {count} courses remaining."
+  },
+  "course": {
+    "back": "Back to Dashboard",
+    "watch_video": "Mark as Watched",
+    "watched": "Video marked as watched",
+    "quiz_title": "Knowledge Check",
+    "quiz_locked": "Watch the video first",
+    "quiz_locked_sub": "Complete the video lesson above to unlock this quiz.",
+    "submit": "Submit Answers",
+    "answer_all": "Answer all questions to submit ({answered}/{total})",
+    "submitting": "Submitting…",
+    "pass": "Congratulations!",
+    "fail": "Not quite right",
+    "score_label": "correct",
+    "passed_msg": "You passed this course!",
+    "failed_msg": "You need a higher score to pass.",
+    "try_again": "Try Again",
+    "go_dashboard": "Back to Dashboard"
+  },
+  "status": {
+    "invited": "Invited",
+    "in_progress": "In Progress",
+    "passed": "Passed",
+    "failed": "Failed"
+  },
+  "theme": {
+    "label": "Theme",
+    "midnight": "Midnight",
+    "slate": "Slate",
+    "parchment": "Parchment",
+    "arctic": "Arctic",
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "language": {
+    "en": "English",
+    "es": "Español"
+  }
+}

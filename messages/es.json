@@ -1,0 +1,86 @@
+{
+  "app": {
+    "name": "Portal LMS",
+    "tagline": "Sistema de Gestión de Aprendizaje"
+  },
+  "login": {
+    "welcome": "Bienvenido de nuevo",
+    "subtitle": "Inicia sesión en tu cuenta para continuar",
+    "email": "Correo electrónico",
+    "email_placeholder": "tu@empresa.com",
+    "password": "Contraseña",
+    "sign_in": "Iniciar sesión",
+    "signing_in": "Iniciando sesión…",
+    "no_account": "¿No tienes cuenta? Solicita a tu administrador un enlace de invitación.",
+    "demo_access": "Acceso rápido de demostración",
+    "learner_demo": "Demo Estudiante",
+    "admin_demo": "Demo Administrador",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "error_invalid": "Correo o contraseña incorrectos."
+  },
+  "nav": {
+    "admin": "Admin",
+    "courses": "Cursos",
+    "completions": "Completaciones",
+    "compliance": "Cumplimiento",
+    "dashboard": "Panel",
+    "sign_out": "Cerrar sesión",
+    "administrator": "Administrador"
+  },
+  "dashboard": {
+    "welcome": "Bienvenido de nuevo",
+    "progress": "Progreso General",
+    "completed": "completado",
+    "enrolled": "Inscritos",
+    "in_progress": "En Progreso",
+    "complete": "Completados",
+    "your_courses": "Mis Cursos",
+    "no_courses": "Sin cursos aún",
+    "no_courses_sub": "Aún no estás inscrito en ningún curso. Contacta a tu administrador para comenzar.",
+    "continue": "Continuar",
+    "start": "Comenzar",
+    "review": "Revisar",
+    "videos": "video",
+    "videos_plural": "videos",
+    "zero_remaining": "Tienes 0 cursos pendientes.",
+    "remaining": "Tienes {count} curso pendiente.",
+    "remaining_plural": "Tienes {count} cursos pendientes."
+  },
+  "course": {
+    "back": "Volver al Panel",
+    "watch_video": "Marcar como visto",
+    "watched": "Video marcado como visto",
+    "quiz_title": "Evaluación de Conocimientos",
+    "quiz_locked": "Ve el video primero",
+    "quiz_locked_sub": "Completa la lección en video de arriba para desbloquear este cuestionario.",
+    "submit": "Enviar Respuestas",
+    "answer_all": "Responde todas las preguntas para enviar ({answered}/{total})",
+    "submitting": "Enviando…",
+    "pass": "¡Felicitaciones!",
+    "fail": "No del todo bien",
+    "score_label": "correctas",
+    "passed_msg": "¡Pasaste este curso!",
+    "failed_msg": "Necesitas una puntuación más alta para pasar.",
+    "try_again": "Intentar de nuevo",
+    "go_dashboard": "Volver al Panel"
+  },
+  "status": {
+    "invited": "Invitado",
+    "in_progress": "En Progreso",
+    "passed": "Aprobado",
+    "failed": "Reprobado"
+  },
+  "theme": {
+    "label": "Tema",
+    "midnight": "Medianoche",
+    "slate": "Pizarra",
+    "parchment": "Pergamino",
+    "arctic": "Ártico",
+    "dark": "Oscuro",
+    "light": "Claro"
+  },
+  "language": {
+    "en": "English",
+    "es": "Español"
+  }
+}

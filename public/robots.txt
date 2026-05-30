@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /course
+Disallow: /api
+Allow: /login
+
+Sitemap: https://lms-platform-7tqm6ioj7-adobetoby-5572s-projects.vercel.app/sitemap.xml
