@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X, Settings, ShieldCheck, Users, LayoutDashboard, BookOpen, CheckSquare, FileText, ClipboardList } from 'lucide-react'
+import { Menu, X, Settings, ShieldCheck, Users, Users2, LayoutDashboard, BookOpen, CheckSquare, FileText, ClipboardList } from 'lucide-react'
 
 interface NavItem { href: string; label: string; icon: React.ReactNode }
 
@@ -16,6 +16,7 @@ const ADMIN_LINKS: NavItem[] = [
   { href: '/admin/courses',      label: 'Courses',     icon: <BookOpen className="w-4 h-4" /> },
   { href: '/admin/completions',  label: 'Completions', icon: <CheckSquare className="w-4 h-4" /> },
   { href: '/admin/learners',     label: 'Learners',    icon: <Users className="w-4 h-4" /> },
+  { href: '/admin/teams',        label: 'Teams',       icon: <Users2 className="w-4 h-4" /> },
   { href: '/admin/compliance',   label: 'Compliance',  icon: <ShieldCheck className="w-4 h-4" /> },
   { href: '/admin/documents',    label: 'Documents',   icon: <FileText className="w-4 h-4" /> },
   { href: '/admin/surveys',      label: 'Surveys',     icon: <ClipboardList className="w-4 h-4" /> },
