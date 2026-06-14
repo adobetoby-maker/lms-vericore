@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   BookOpen, Video, HelpCircle, Users, Pencil, Trash2,
-  Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight, Send,
+  Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight, Send, Layers,
 } from 'lucide-react'
 import PublishGroupModal from './PublishGroupModal'
 
@@ -131,6 +131,12 @@ export default function CourseTable({ courses }: Props) {
               <Link href={`/admin/courses/${course.id}`}
                 className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">
                 <Pencil className="w-3.5 h-3.5" />Edit
+              </Link>
+            )}
+            {!isArchived && (
+              <Link href={`/admin/courses/${course.id}/slides`}
+                className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">
+                <Layers className="w-3.5 h-3.5" />Slides
               </Link>
             )}
 
