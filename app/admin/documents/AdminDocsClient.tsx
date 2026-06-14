@@ -1,14 +1,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Upload, Trash2, FileText, CheckCircle, Users, AlertCircle } from 'lucide-react'
+import {
+  Upload, Trash2, FileText, CheckCircle, Users, AlertCircle,
+  Shield, HardDrive, Download, Lock, Plus, X, Eye, EyeOff,
+  Settings, Database, Sparkles,
+} from 'lucide-react'
 
 interface Doc {
   id: string
   title: string
+  description?: string
   category: string
   file_name: string
+  file_size?: number
   requires_ack: boolean
+  visibility: 'all' | 'teams' | 'admin_only'
   created_at: string
 }
 
@@ -20,16 +27,47 @@ interface ReportDoc {
   completion_pct: number
 }
 
-const CATEGORIES = ['HR', 'Compliance', 'Safety', 'Clinical', 'Policy', 'General']
+interface Team { id: number; name: string }
+interface AccessRule { id: number; team_id: number; is_required: boolean; teams: { id: number; name: string } }
+
+const CATEGORIES = ['HR', 'Compliance', 'Safety', 'Clinical', 'Operations', 'Product', 'Leadership', 'General']
+const VISIBILITY_OPTS = [
+  { value: 'all',        label: 'All Staff',    icon: Eye,    desc: 'Every logged-in user can see this' },
+  { value: 'teams',      label: 'Assigned Teams', icon: Users, desc: 'Only teams you specify below' },
+  { value: 'admin_only', label: 'Admin Only',   icon: Lock,   desc: 'Hidden from learners entirely' },
+]
+
+const TAB_LIST = [
+  { key: 'library',   label: 'Library',      icon: FileText },
+  { key: 'upload',    label: 'Upload',        icon: Upload },
+  { key: 'access',    label: 'Access Rules',  icon: Shield },
+  { key: 'report',    label: 'Ack Report',    icon: CheckCircle },
+  { key: 'storage',   label: 'Storage',       icon: HardDrive },
+  { key: 'vault',     label: 'Cold Vault',    icon: Database },
+] as const
+
+type Tab = typeof TAB_LIST[number]['key']
 
 export function AdminDocsClient() {
-  const [docs, setDocs]     = useState<Doc[]>([])
-  const [report, setReport] = useState<ReportDoc[]>([])
-  const [tab, setTab]       = useState<'library' | 'upload' | 'report'>('library')
+  const [docs, setDocs]       = useState<Doc[]>([])
+  const [report, setReport]   = useState<ReportDoc[]>([])
+  const [teams, setTeams]     = useState<Team[]>([])
+  const [tab, setTab]         = useState<Tab>('library')
   const [uploading, setUploading] = useState(false)
-  const [form, setForm]     = useState({ title: '', description: '', category: 'HR', requires_ack: false })
-  const [file, setFile]     = useState<File | null>(null)
   const [success, setSuccess] = useState('')
+  const [error, setError]     = useState('')
+  const [form, setForm]       = useState({ title: '', description: '', category: 'HR', requires_ack: false })
+  const [file, setFile]       = useState<File | null>(null)
+  const [seeding, setSeeding] = useState(false)
+  // Access rules state
+  const [selectedDoc, setSelectedDoc] = useState<Doc | null>(null)
+  const [accessRules, setAccessRules] = useState<AccessRule[]>([])
+  const [docVisibility, setDocVisibility] = useState<string>('all')
+  const [addingTeam, setAddingTeam] = useState(false)
+  const [newTeamId, setNewTeamId] = useState('')
+  const [newRequired, setNewRequired] = useState(false)
+  // Vault state
+  const [vaultLoading, setVaultLoading] = useState(false)
 
   const fetchDocs = useCallback(async () => {
     const res = await fetch('/api/documents')
@@ -43,13 +81,29 @@ export function AdminDocsClient() {
     setReport(data.report ?? [])
   }, [])
 
+  const fetchTeams = useCallback(async () => {
+    const res = await fetch('/api/teams')
+    const data = await res.json() as { teams: Team[] }
+    setTeams(data.teams ?? [])
+  }, [])
+
+  const loadDocAccess = useCallback(async (doc: Doc) => {
+    setSelectedDoc(doc)
+    setDocVisibility(doc.visibility)
+    setAccessRules([])
+    const res = await fetch(`/api/documents/${doc.id}/access`)
+    const data = await res.json() as { access: AccessRule[] }
+    setAccessRules(data.access ?? [])
+  }, [])
+
   useEffect(() => { fetchDocs() }, [fetchDocs])
   useEffect(() => { if (tab === 'report') fetchReport() }, [tab, fetchReport])
+  useEffect(() => { if (tab === 'access') fetchTeams() }, [tab, fetchTeams])
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file || !form.title) return
-    setUploading(true)
+    setUploading(true); setError('')
     const fd = new FormData()
     fd.append('file', file)
     fd.append('title', form.title)
@@ -58,11 +112,14 @@ export function AdminDocsClient() {
     fd.append('requires_ack', String(form.requires_ack))
     const res = await fetch('/api/documents', { method: 'POST', body: fd })
     if (res.ok) {
-      setSuccess('Document uploaded successfully.')
+      setSuccess('Document uploaded.')
       setForm({ title: '', description: '', category: 'HR', requires_ack: false })
       setFile(null)
       fetchDocs()
       setTimeout(() => setSuccess(''), 3000)
+    } else {
+      const d = await res.json() as { error?: string }
+      setError(d.error ?? 'Upload failed')
     }
     setUploading(false)
   }
@@ -73,62 +130,167 @@ export function AdminDocsClient() {
     setDocs(prev => prev.filter(d => d.id !== id))
   }
 
+  const handleSeedDemo = async () => {
+    if (!confirm('Load 20 demo documents? Only works on an empty library.')) return
+    setSeeding(true)
+    const res = await fetch('/api/documents/seed-demo', { method: 'POST' })
+    const data = await res.json() as { ok?: boolean; count?: number; error?: string }
+    if (data.ok) { setSuccess(`Loaded ${data.count} demo documents.`); fetchDocs() }
+    else setError(data.error ?? 'Seed failed')
+    setSeeding(false)
+    setTimeout(() => { setSuccess(''); setError('') }, 4000)
+  }
+
+  const handleVisibilityChange = async (visibility: string) => {
+    if (!selectedDoc) return
+    setDocVisibility(visibility)
+    await fetch(`/api/documents/${selectedDoc.id}/access`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibility }),
+    })
+    setDocs(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, visibility: visibility as Doc['visibility'] } : d))
+    setSelectedDoc(prev => prev ? { ...prev, visibility: visibility as Doc['visibility'] } : null)
+  }
+
+  const handleAddTeam = async () => {
+    if (!selectedDoc || !newTeamId) return
+    const res = await fetch(`/api/documents/${selectedDoc.id}/access`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team_id: parseInt(newTeamId), is_required: newRequired }),
+    })
+    if (res.ok) {
+      setNewTeamId(''); setNewRequired(false); setAddingTeam(false)
+      const d = await res.json() as AccessRule
+      const team = teams.find(t => t.id === parseInt(newTeamId))
+      if (team) setAccessRules(prev => [...prev, { ...d, teams: team }])
+    }
+  }
+
+  const handleRemoveAccess = async (ruleId: number) => {
+    if (!selectedDoc) return
+    await fetch(`/api/documents/${selectedDoc.id}/access`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_id: ruleId }),
+    })
+    setAccessRules(prev => prev.filter(r => r.id !== ruleId))
+  }
+
+  const handleToggleRequired = async (rule: AccessRule) => {
+    if (!selectedDoc) return
+    const updated = !rule.is_required
+    await fetch(`/api/documents/${selectedDoc.id}/access`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_id: rule.id, is_required: updated }),
+    })
+    setAccessRules(prev => prev.map(r => r.id === rule.id ? { ...r, is_required: updated } : r))
+  }
+
+  const handleVaultDownload = async () => {
+    setVaultLoading(true)
+    const res = await fetch('/api/documents/vault')
+    if (!res.ok) { setVaultLoading(false); return }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `lms-vault-${new Date().toISOString().slice(0, 10)}.vault`
+    a.click()
+    URL.revokeObjectURL(url)
+    setVaultLoading(false)
+  }
+
+  const visibilityIcon = (v: string) => {
+    if (v === 'admin_only') return <Lock className="w-3 h-3 text-red-400" />
+    if (v === 'teams') return <Users className="w-3 h-3 text-amber-400" />
+    return <Eye className="w-3 h-3" style={{ color: 'var(--text3)' }} />
+  }
+
+  const totalStorage = docs.reduce((sum, d) => sum + (d.file_size ?? 0), 0)
+  const fmtBytes = (b: number) => b > 1_000_000 ? `${(b / 1_000_000).toFixed(1)} MB` : `${(b / 1_000).toFixed(0)} KB`
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text)' }}>Document Library</h1>
-      <p className="text-sm mb-6" style={{ color: 'var(--text2)' }}>Upload policies, handbooks, SDS sheets. Mark documents for staff acknowledgment.</p>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text)' }}>Document Control Panel</h1>
+          <p className="text-sm" style={{ color: 'var(--text2)' }}>
+            {docs.length} documents · {fmtBytes(totalStorage)} used
+          </p>
+        </div>
+        {docs.length === 0 && (
+          <button onClick={handleSeedDemo} disabled={seeding}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50"
+            style={{ background: 'var(--accent)', color: 'var(--accent-fg)' }}>
+            <Sparkles className="w-4 h-4" />
+            {seeding ? 'Loading…' : 'Load Demo Content'}
+          </button>
+        )}
+      </div>
+
+      {(success || error) && (
+        <div className={`mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${success ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border border-red-500/30 text-red-400'}`}>
+          {success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {success || error}
+        </div>
+      )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 rounded-xl p-1 w-fit card-theme">
-        {(['library', 'upload', 'report'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize cursor-pointer ${
-              tab === t ? 'bg-indigo-600 text-white' : ''
-            }`}
-            style={tab === t ? {} : { color: 'var(--text2)' }}>
-            {t === 'report' ? 'Acknowledgment Report' : t}
+      <div className="flex gap-1 mb-6 rounded-xl p-1 w-fit" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+        {TAB_LIST.map(({ key, label, icon: Icon }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+            style={tab === key
+              ? { background: 'var(--accent)', color: 'var(--accent-fg)' }
+              : { color: 'var(--text2)' }}>
+            <Icon className="w-3.5 h-3.5" />{label}
           </button>
         ))}
       </div>
 
-      {/* Library tab */}
+      {/* ── LIBRARY ─────────────────────────────── */}
       {tab === 'library' && (
         <div className="space-y-2">
           {docs.length === 0 ? (
             <div className="flex flex-col items-center py-16" style={{ color: 'var(--text3)' }}>
               <FileText className="h-10 w-10 mb-3" />
-              <p className="text-sm">No documents uploaded yet.</p>
-              <button onClick={() => setTab('upload')} className="mt-3 text-indigo-400 text-sm underline cursor-pointer">
-                Upload first document →
-              </button>
+              <p className="text-sm mb-1">No documents yet.</p>
+              <button onClick={() => setTab('upload')} className="text-xs underline cursor-pointer" style={{ color: 'var(--accent)' }}>Upload first →</button>
             </div>
           ) : docs.map(doc => (
-            <div key={doc.id} className="flex items-center gap-4 rounded-xl border px-4 py-3 card-theme" style={{ borderColor: 'var(--border)' }}>
+            <div key={doc.id} className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <FileText className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--text3)' }} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{doc.title}</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: 'var(--text3)', background: 'var(--bg3)' }}>{doc.category}</span>
-                  {doc.requires_ack && <span className="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Requires ack</span>}
+                  {doc.requires_ack && <span className="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Ack required</span>}
+                  <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text3)' }}>
+                    {visibilityIcon(doc.visibility)} {doc.visibility === 'admin_only' ? 'Admin only' : doc.visibility === 'teams' ? 'Teams only' : 'All staff'}
+                  </span>
                 </div>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>{doc.file_name}</p>
+                {doc.description && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text3)' }}>{doc.description}</p>}
               </div>
-              <button onClick={() => handleDelete(doc.id, doc.title)} className="p-1 transition-colors cursor-pointer hover:text-red-400" style={{ color: 'var(--text3)' }}>
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setSelectedDoc(doc); loadDocAccess(doc); setTab('access') }}
+                  className="p-1.5 rounded-lg transition-colors cursor-pointer" title="Access rules"
+                  style={{ color: 'var(--text3)' }}>
+                  <Settings className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => handleDelete(doc.id, doc.title)}
+                  className="p-1.5 rounded-lg transition-colors cursor-pointer hover:text-red-400"
+                  style={{ color: 'var(--text3)' }}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Upload tab */}
+      {/* ── UPLOAD ──────────────────────────────── */}
       {tab === 'upload' && (
         <form onSubmit={handleUpload} className="space-y-4 max-w-lg">
-          {success && (
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 text-sm text-emerald-400">
-              <CheckCircle className="h-4 w-4" /> {success}
-            </div>
-          )}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text2)' }}>Document Title *</label>
             <input type="text" required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -138,7 +300,7 @@ export function AdminDocsClient() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text2)' }}>Description</label>
             <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Annual staff handbook — all employees must read and acknowledge"
+              placeholder="Brief description"
               className="input-theme w-full px-4 py-3 rounded-xl text-sm" />
           </div>
           <div>
@@ -150,7 +312,7 @@ export function AdminDocsClient() {
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text2)' }}>PDF File *</label>
-            <div className="relative flex items-center justify-center rounded-xl border-2 border-dashed p-6 cursor-pointer transition-colors"
+            <div className="relative flex items-center justify-center rounded-xl border-2 border-dashed p-6 cursor-pointer"
               style={{ borderColor: 'var(--border)' }}
               onClick={() => document.getElementById('file-input')?.click()}>
               <input id="file-input" type="file" accept=".pdf" className="hidden"
@@ -165,7 +327,6 @@ export function AdminDocsClient() {
                 <div className="text-center">
                   <Upload className="h-8 w-8 mx-auto mb-2" style={{ color: 'var(--text3)' }} />
                   <p className="text-sm" style={{ color: 'var(--text2)' }}>Click to upload PDF</p>
-                  <p className="text-xs" style={{ color: 'var(--text3)' }}>Employee handbooks, policies, SDS sheets</p>
                 </div>
               )}
             </div>
@@ -178,18 +339,142 @@ export function AdminDocsClient() {
             </div>
             <div>
               <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Require acknowledgment</p>
-              <p className="text-xs" style={{ color: 'var(--text3)' }}>Staff must click "I have read this" — tracked with timestamp</p>
+              <p className="text-xs" style={{ color: 'var(--text3)' }}>Staff must click "I have read this" — tracked</p>
             </div>
           </label>
           <button type="submit" disabled={uploading || !file || !form.title}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-3 text-sm font-bold text-white transition-colors">
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
+            style={{ background: 'var(--accent)' }}>
             <Upload className="h-4 w-4" />
             {uploading ? 'Uploading…' : 'Upload Document'}
           </button>
         </form>
       )}
 
-      {/* Report tab */}
+      {/* ── ACCESS RULES ────────────────────────── */}
+      {tab === 'access' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Doc picker */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text2)' }}>Select Document</h3>
+            <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
+              {docs.map(doc => (
+                <button key={doc.id} onClick={() => loadDocAccess(doc)}
+                  className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  style={selectedDoc?.id === doc.id
+                    ? { background: 'var(--accent)', color: 'var(--accent-fg)' }
+                    : { background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <FileText className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{doc.title}</p>
+                    <p className="text-[10px]" style={selectedDoc?.id === doc.id ? { color: 'rgba(255,255,255,0.7)' } : { color: 'var(--text3)' }}>{doc.category}</p>
+                  </div>
+                  {visibilityIcon(doc.visibility)}
+                </button>
+              ))}
+              {docs.length === 0 && <p className="text-sm" style={{ color: 'var(--text3)' }}>No documents yet.</p>}
+            </div>
+          </div>
+
+          {/* Access editor */}
+          <div>
+            {!selectedDoc ? (
+              <div className="flex flex-col items-center justify-center h-40" style={{ color: 'var(--text3)' }}>
+                <Shield className="w-8 h-8 mb-2" />
+                <p className="text-sm">Select a document to configure access</p>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>{selectedDoc.title}</h3>
+                <p className="text-xs mb-4" style={{ color: 'var(--text3)' }}>{selectedDoc.category}</p>
+
+                {/* Visibility selector */}
+                <div className="mb-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text2)' }}>Who can see this?</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {VISIBILITY_OPTS.map(opt => {
+                      const Icon = opt.icon
+                      const active = docVisibility === opt.value
+                      return (
+                        <button key={opt.value} onClick={() => handleVisibilityChange(opt.value)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors cursor-pointer text-left"
+                          style={active
+                            ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--accent-fg)' }
+                            : { background: 'var(--bg2)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold">{opt.label}</p>
+                            <p className="text-[10px]" style={active ? { color: 'rgba(255,255,255,0.7)' } : { color: 'var(--text3)' }}>{opt.desc}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Team assignments (only when visibility = teams) */}
+                {docVisibility === 'teams' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text2)' }}>Team Access</p>
+                      <button onClick={() => setAddingTeam(true)}
+                        className="flex items-center gap-1 text-xs cursor-pointer"
+                        style={{ color: 'var(--accent)' }}>
+                        <Plus className="w-3 h-3" /> Add team
+                      </button>
+                    </div>
+
+                    {addingTeam && (
+                      <div className="flex items-center gap-2 mb-3 p-3 rounded-lg" style={{ background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+                        <select value={newTeamId} onChange={e => setNewTeamId(e.target.value)}
+                          className="input-theme flex-1 px-3 py-1.5 rounded-lg text-xs cursor-pointer">
+                          <option value="">Select team…</option>
+                          {teams.filter(t => !accessRules.some(r => r.team_id === t.id)).map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                        <label className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--text2)' }}>
+                          <input type="checkbox" checked={newRequired} onChange={e => setNewRequired(e.target.checked)} className="cursor-pointer" />
+                          Required
+                        </label>
+                        <button onClick={handleAddTeam} disabled={!newTeamId}
+                          className="px-2 py-1 rounded text-xs cursor-pointer disabled:opacity-40"
+                          style={{ background: 'var(--accent)', color: 'var(--accent-fg)' }}>Add</button>
+                        <button onClick={() => setAddingTeam(false)} style={{ color: 'var(--text3)' }}>
+                          <X className="w-4 h-4 cursor-pointer" />
+                        </button>
+                      </div>
+                    )}
+
+                    {accessRules.length === 0 ? (
+                      <p className="text-xs" style={{ color: 'var(--text3)' }}>No teams assigned — document hidden from all learners.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {accessRules.map(rule => (
+                          <div key={rule.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                            <Users className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text3)' }} />
+                            <span className="flex-1 text-sm" style={{ color: 'var(--text)' }}>{rule.teams?.name}</span>
+                            <button onClick={() => handleToggleRequired(rule)}
+                              className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition-colors ${rule.is_required ? 'text-amber-400 bg-amber-400/10' : 'bg-opacity-10'}`}
+                              style={rule.is_required ? {} : { color: 'var(--text3)', background: 'var(--bg3)' }}>
+                              {rule.is_required ? 'Required' : 'Optional'}
+                            </button>
+                            <button onClick={() => handleRemoveAccess(rule.id)} style={{ color: 'var(--text3)' }}>
+                              <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-400" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── ACK REPORT ──────────────────────────── */}
       {tab === 'report' && (
         <div className="space-y-4">
           {report.length === 0 ? (
@@ -198,7 +483,7 @@ export function AdminDocsClient() {
               <p className="text-sm">No required acknowledgment documents yet.</p>
             </div>
           ) : report.map(item => (
-            <div key={item.document.id} className="rounded-xl border p-5 card-theme" style={{ borderColor: 'var(--border)' }}>
+            <div key={item.document.id} className="rounded-xl border p-5" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-semibold" style={{ color: 'var(--text)' }}>{item.document.title}</h3>
@@ -221,6 +506,94 @@ export function AdminDocsClient() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── STORAGE ─────────────────────────────── */}
+      {tab === 'storage' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Documents', value: docs.length, sub: 'total files' },
+              { label: 'Storage used', value: fmtBytes(totalStorage), sub: 'across all docs' },
+              { label: 'Ack required', value: docs.filter(d => d.requires_ack).length, sub: 'documents' },
+              { label: 'Admin only', value: docs.filter(d => d.visibility === 'admin_only').length, sub: 'hidden from staff' },
+            ].map(stat => (
+              <div key={stat.label} className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <p className="text-xs" style={{ color: 'var(--text3)' }}>{stat.label}</p>
+                <p className="text-2xl font-black mt-1" style={{ color: 'var(--text)' }}>{stat.value}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>{stat.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text2)' }}>By Category</h3>
+            <div className="space-y-2">
+              {CATEGORIES.filter(cat => docs.some(d => d.category === cat)).map(cat => {
+                const catDocs = docs.filter(d => d.category === cat)
+                const catSize = catDocs.reduce((s, d) => s + (d.file_size ?? 0), 0)
+                const pct = totalStorage > 0 ? Math.round(catSize / totalStorage * 100) : 0
+                return (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span className="w-24 text-xs text-right" style={{ color: 'var(--text2)' }}>{cat}</span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg3)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
+                    </div>
+                    <span className="text-xs w-24" style={{ color: 'var(--text3)' }}>{catDocs.length} doc{catDocs.length !== 1 ? 's' : ''} · {catSize > 0 ? fmtBytes(catSize) : '—'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── COLD VAULT ──────────────────────────── */}
+      {tab === 'vault' && (
+        <div className="max-w-lg">
+          <div className="rounded-2xl p-6 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg3)' }}>
+                <Lock className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              </div>
+              <div>
+                <h3 className="font-semibold" style={{ color: 'var(--text)' }}>Cold Vault Download</h3>
+                <p className="text-xs" style={{ color: 'var(--text3)' }}>AES-256-GCM encrypted backup</p>
+              </div>
+            </div>
+            <p className="text-sm mb-5" style={{ color: 'var(--text2)' }}>
+              Downloads an encrypted <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg3)' }}>.vault</code> file containing all document metadata, acknowledgment records, access rules, and signed download URLs for every file. Store offline as a compliance backup.
+            </p>
+            <div className="rounded-xl p-4 mb-5 text-xs space-y-1.5" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+              <p>• Encrypted with AES-256-GCM using your <code>VAULT_SECRET</code> env var</p>
+              <p>• Signed download URLs valid for 7 days from export date</p>
+              <p>• Includes all ack records with timestamps and user identifiers</p>
+              <p>• File format: <code>.vault</code> (binary: IV + auth tag + ciphertext)</p>
+              <p>• Decrypt with the companion CLI or any AES-256-GCM tool</p>
+            </div>
+            <button onClick={handleVaultDownload} disabled={vaultLoading}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-colors disabled:opacity-50 cursor-pointer"
+              style={{ background: 'var(--accent)' }}>
+              <Download className="w-4 h-4" />
+              {vaultLoading ? 'Generating vault…' : `Download Vault (${docs.length} documents)`}
+            </button>
+          </div>
+
+          <div className="rounded-xl p-4 text-xs space-y-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)' }}>
+            <p className="font-semibold" style={{ color: 'var(--text2)' }}>Decrypt vault locally</p>
+            <pre className="overflow-x-auto p-3 rounded-lg text-[10px]" style={{ background: 'var(--bg3)' }}>{`node -e "
+const {createDecipheriv,createHash}=require('crypto');
+const fs=require('fs');
+const buf=fs.readFileSync('lms-vault-YYYY-MM-DD.vault');
+const key=createHash('sha256').update(process.env.VAULT_SECRET).digest();
+const iv=buf.slice(0,12), tag=buf.slice(12,28), ct=buf.slice(28);
+const d=createDecipheriv('aes-256-gcm',key,iv);
+d.setAuthTag(tag);
+console.log(d.update(ct)+d.final());
+"`}</pre>
+            <p>Set <code>VAULT_SECRET</code> to the same value used on the server.</p>
+          </div>
         </div>
       )}
     </div>
