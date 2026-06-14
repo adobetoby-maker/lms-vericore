@@ -566,11 +566,11 @@ export function AdminDocsClient() {
               Downloads an encrypted <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--bg3)' }}>.vault</code> file containing all document metadata, acknowledgment records, access rules, and signed download URLs for every file. Store offline as a compliance backup.
             </p>
             <div className="rounded-xl p-4 mb-5 text-xs space-y-1.5" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
-              <p>• Encrypted with AES-256-GCM using your <code>VAULT_SECRET</code> env var</p>
-              <p>• Signed download URLs valid for 7 days from export date</p>
-              <p>• Includes all ack records with timestamps and user identifiers</p>
-              <p>• File format: <code>.vault</code> (binary: IV + auth tag + ciphertext)</p>
-              <p>• Decrypt with the companion CLI or any AES-256-GCM tool</p>
+              <p>• Encrypted with AES-256-GCM + scrypt key derivation (VAULT_SECRET env var)</p>
+              <p>• Contains metadata + ack records only — no embedded file URLs</p>
+              <p>• File paths included; retrieve files via authenticated admin API after decrypting</p>
+              <p>• Format: <code>.vault</code> (binary: salt(16) + IV(12) + auth tag(16) + ciphertext)</p>
+              <p>• Requires VAULT_SECRET ≥ 32 chars — vault endpoint returns 503 if not set</p>
             </div>
             <button onClick={handleVaultDownload} disabled={vaultLoading}
               className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-colors disabled:opacity-50 cursor-pointer"
@@ -583,11 +583,12 @@ export function AdminDocsClient() {
           <div className="rounded-xl p-4 text-xs space-y-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)' }}>
             <p className="font-semibold" style={{ color: 'var(--text2)' }}>Decrypt vault locally</p>
             <pre className="overflow-x-auto p-3 rounded-lg text-[10px]" style={{ background: 'var(--bg3)' }}>{`node -e "
-const {createDecipheriv,createHash}=require('crypto');
+const {createDecipheriv,scryptSync}=require('crypto');
 const fs=require('fs');
 const buf=fs.readFileSync('lms-vault-YYYY-MM-DD.vault');
-const key=createHash('sha256').update(process.env.VAULT_SECRET).digest();
-const iv=buf.slice(0,12), tag=buf.slice(12,28), ct=buf.slice(28);
+const salt=buf.slice(0,16), iv=buf.slice(16,28);
+const tag=buf.slice(28,44), ct=buf.slice(44);
+const key=scryptSync(process.env.VAULT_SECRET, salt, 32);
 const d=createDecipheriv('aes-256-gcm',key,iv);
 d.setAuthTag(tag);
 console.log(d.update(ct)+d.final());
