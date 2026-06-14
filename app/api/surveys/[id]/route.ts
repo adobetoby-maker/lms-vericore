@@ -10,16 +10,19 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [{ data: survey }, { data: questions }, { data: existing }] = await Promise.all([
+  const [{ data: survey }, { data: questions }, { data: existing }, { data: profile }] = await Promise.all([
     supabaseAdmin.from('surveys').select('*').eq('id', id).single(),
     supabaseAdmin.from('survey_questions')
       .select('id, question, type, options, required, sort_order')
       .eq('survey_id', id).order('sort_order'),
     supabaseAdmin.from('survey_responses')
       .select('answers, submitted_at').eq('survey_id', id).eq('user_id', user.id).single(),
+    supabaseAdmin.from('profiles').select('is_admin').eq('id', user.id).single(),
   ])
 
-  if (!survey) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!survey || (!profile?.is_admin && !survey.is_active)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   return NextResponse.json({ survey, questions: questions ?? [], response: existing })
 }
@@ -29,6 +32,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const [{ data: survey }, { data: profile }] = await Promise.all([
+    supabaseAdmin.from('surveys').select('id, is_active').eq('id', id).single(),
+    supabaseAdmin.from('profiles').select('is_admin').eq('id', user.id).single(),
+  ])
+
+  if (!survey || (!profile?.is_admin && !survey.is_active)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   const { answers } = await req.json() as { answers: Record<string, unknown> }
 
