@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { LayoutDashboard, Settings, ShieldCheck, Users, FileText, ClipboardList } from 'lucide-react'
 import SignOutButton from './SignOutButton'
+import TourReplayButton from './TourReplayButton'
 import MobileNav from './MobileNav'
 import brand from '@/lib/brand'
 
@@ -98,11 +99,12 @@ export default async function Navbar() {
             ) : (
               <>
                 {[
-                  { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-                  { href: '/documents', label: 'Documents', Icon: FileText },
-                  { href: '/surveys',   label: 'Surveys',   Icon: ClipboardList },
-                ].map(({ href, label, Icon }) => (
+                  { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard, tour: undefined },
+                  { href: '/documents', label: 'Documents', Icon: FileText,         tour: 'nav-documents' },
+                  { href: '/surveys',   label: 'Surveys',   Icon: ClipboardList,    tour: 'nav-surveys' },
+                ].map(({ href, label, Icon, tour }) => (
                   <Link key={href} href={href}
+                    {...(tour ? { 'data-tour': tour } : {})}
                     className="nav-link flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors">
                     <Icon className="w-4 h-4" />
                     {label}
@@ -120,6 +122,7 @@ export default async function Navbar() {
               )}
             </div>
             <div className="w-px h-6 hidden sm:block" style={{ background: 'var(--border)' }} />
+            {!profile?.is_admin && <TourReplayButton />}
             <SignOutButton />
             <MobileNav isAdmin={!!profile?.is_admin} />
           </div>

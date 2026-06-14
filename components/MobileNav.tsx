@@ -34,6 +34,7 @@ export default function MobileNav({ isAdmin }: Props) {
   return (
     <div className="sm:hidden">
       <button
+        data-tour="mobile-menu"
         onClick={() => setOpen(o => !o)}
         className="p-2 rounded-lg cursor-pointer transition-colors"
         style={{ color: 'var(--text2)', background: open ? 'var(--bg3)' : 'transparent' }}

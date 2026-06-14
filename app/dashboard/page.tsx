@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/Navbar'
 import { DashboardClient } from '@/components/DashboardClient'
+import TourAutoStart from '@/components/TourAutoStart'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
+      <TourAutoStart />
       <DashboardClient firstName={firstName} enrollments={enrollments} attempts={attempts} />
     </div>
   )

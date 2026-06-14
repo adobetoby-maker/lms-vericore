@@ -256,7 +256,7 @@ export function DashboardClient({ firstName, enrollments, attempts }: Props) {
       </div>
 
       {/* Course list */}
-      <div>
+      <div data-tour="course-list">
         <h2 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text2)' }}>Your Courses</h2>
 
         {inProgress.length > 0 && (
@@ -265,8 +265,9 @@ export function DashboardClient({ firstName, enrollments, attempts }: Props) {
               <Clock className="h-3.5 w-3.5" /> Continue Learning
             </p>
             <div className="space-y-2">
-              {inProgress.map(e => (
+              {inProgress.map((e, idx) => (
                 <Link key={e.id} href={`/course/${e.courses?.id}`}
+                  {...(idx === 0 ? { 'data-tour': 'course-card-first' } : {})}
                   className="flex items-center gap-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 px-4 py-3.5 transition-colors group">
                   <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
                     <PlayCircle className="h-5 w-5 text-amber-400" />
