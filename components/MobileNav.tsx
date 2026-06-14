@@ -25,6 +25,7 @@ const ADMIN_LINKS: NavItem[] = [
 
 const LEARNER_LINKS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { href: '/catalog',   label: 'Catalog',   icon: <BookOpen className="w-4 h-4" /> },
   { href: '/documents', label: 'Documents', icon: <FileText className="w-4 h-4" /> },
   { href: '/surveys',   label: 'Surveys',   icon: <ClipboardList className="w-4 h-4" /> },
 ]
