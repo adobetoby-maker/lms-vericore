@@ -1,9 +1,11 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import Navbar from '@/components/Navbar'
 import StatusBadge from '@/components/StatusBadge'
 import CourseClient from './CourseClient'
+import SlideViewer from '@/components/SlideViewer'
 import { Clock, ArrowLeft } from 'lucide-react'
 
 interface PageProps {
@@ -76,9 +78,28 @@ export default async function CoursePage({ params }: PageProps) {
     .select('id, text, option_a, option_b, option_c, option_d')
     .eq('course_id', courseId)
 
+  // Fetch prior quiz attempts for history
+  const { data: attempts } = await supabase
+    .from('quiz_attempts')
+    .select('id, score, passed, correct_count, total_count, attempted_at')
+    .eq('course_id', courseId)
+    .eq('user_id', user.id)
+    .order('attempted_at', { ascending: false })
+
+  // Fetch slides — use admin client so RLS doesn't block server-side render
+  const { data: slides } = await supabaseAdmin
+    .from('slide_modules')
+    .select('*')
+    .eq('course_id', courseId)
+    .order('slide_order', { ascending: true })
+
   const videoList = videos ?? []
   const questionList = questions ?? []
+  const attemptList = attempts ?? []
+  const slideList = slides ?? []
   const status = enrollment.status as 'invited' | 'in_progress' | 'passed' | 'failed'
+  // No videos → treat as watched so the quiz is immediately accessible
+  const effectiveVideoWatched = videoList.length === 0 ? true : enrollment.video_watched
 
   const firstVideo = videoList[0]
   const firstYtId = firstVideo ? extractYouTubeId(firstVideo.url) : null
@@ -109,10 +130,18 @@ export default async function CoursePage({ params }: PageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
+            {slideList.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">
+                  Slides
+                </h2>
+                <SlideViewer slides={slideList} courseId={courseId} />
+              </div>
+            )}
             <CourseClient
               courseId={courseId}
               enrollmentId={enrollment.id}
-              videoWatched={enrollment.video_watched}
+              videoWatched={effectiveVideoWatched}
               status={status}
               videos={videoList.map(v => ({
                 ...v,
@@ -120,6 +149,7 @@ export default async function CoursePage({ params }: PageProps) {
                 vimeoId: extractVimeoId(v.url),
               }))}
               questions={questionList}
+              priorAttempts={attemptList}
               requireFullVideoWatch={course.require_full_video_watch}
             />
           </div>
@@ -183,7 +213,7 @@ export default async function CoursePage({ params }: PageProps) {
                 <p className="text-slate-400 text-sm">
                   {questionList.length} multiple-choice question{questionList.length !== 1 ? 's' : ''}
                 </p>
-                {!enrollment.video_watched && (
+                {!effectiveVideoWatched && videoList.length > 0 && (
                   <p className="text-xs text-amber-400 mt-2">
                     Watch the video first to unlock the quiz.
                   </p>

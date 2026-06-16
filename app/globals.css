@@ -79,3 +79,61 @@ body {
 /* ── Light mode text readability on utility classes */
 [data-mode="light"] .text-theme   { color: var(--text); }
 [data-mode="light"] .text-theme-2 { color: var(--text2); }
+
+/* ── Product Tour — driver.js brand overrides ──────────────────────── */
+.product-tour.driver-popover {
+  background: var(--bg2);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  color: var(--text);
+}
+.product-tour .driver-popover-title {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 15px;
+}
+.product-tour .driver-popover-description {
+  color: var(--text2);
+  line-height: 1.6;
+  font-size: 13.5px;
+}
+.product-tour .driver-popover-progress-text {
+  color: var(--text3);
+  font-size: 12px;
+}
+.product-tour .driver-popover-next-btn,
+.product-tour .driver-popover-done-btn {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 8px;
+  padding: 6px 14px;
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.product-tour .driver-popover-next-btn:hover,
+.product-tour .driver-popover-done-btn:hover {
+  background: var(--accent-h);
+}
+.product-tour .driver-popover-prev-btn {
+  background: transparent;
+  color: var(--text2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+.product-tour .driver-popover-close-btn {
+  color: var(--text3);
+  font-size: 18px;
+  line-height: 1;
+}
+.driver-overlay {
+  background: var(--bg) !important;
+}
